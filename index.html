@@ -193,7 +193,7 @@ body{
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border-soft);border-top:1px solid var(--border-soft)}
 .cal-cell{
   background:var(--surface);min-height:76px;padding:6px 5px;
-  cursor:pointer;transition:background .12s;overflow:hidden;touch-action:manipulation
+  cursor:pointer;transition:background .12s;overflow:hidden
 }
 .cal-cell:active{background:var(--surface-3)}
 .cal-cell.empty{background:var(--surface-2);cursor:default;pointer-events:none}
@@ -303,6 +303,11 @@ body{
 .cat-income{background:#E8F5EB;color:#2D7A3A}
 .cat-other{background:#F7F5F0;color:#4A4845}
 
+/* FAB type picker */
+.fab-option{display:flex;align-items:center;gap:14px;padding:16px;border-radius:var(--r-lg);background:var(--surface-2);border:none;cursor:pointer;font-family:inherit;width:100%;text-align:left;transition:background .15s;min-height:68px}
+.fab-option:active{background:var(--surface-3)}
+.fab-opt-icon{width:48px;height:48px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+
 /* Scrollbar hide */
 *::-webkit-scrollbar{display:none}
 *{scrollbar-width:none}
@@ -331,7 +336,7 @@ body{
     <div class="view" id="view-adjustments"></div>
     <div class="view" id="view-alerts"></div>
   </div>
-  <button id="fab" onclick="openAddSheet()">+</button>
+  <button id="fab" onclick="openFabMenu()">+</button>
   <div id="bottom-tabs">
     <button class="btab active" data-view="dashboard">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -378,8 +383,13 @@ body{
       <input class="fi" id="add-name" placeholder="e.g. Amazon, Grocery Run, Bonus" maxlength="60">
     </div>
     <div class="fg" id="date-field-wrap">
-      <label class="fl" id="date-field-label">Date</label>
+      <label class="fl">Date</label>
       <input class="fi" id="add-date" type="date">
+    </div>
+    <div class="fg" id="day-field-wrap" style="display:none">
+      <label class="fl">Day of Month</label>
+      <input class="fi" id="add-day-num" type="number" inputmode="numeric" min="1" max="28" placeholder="e.g. 15">
+      <div style="font-size:12px;color:var(--ink-muted);margin-top:4px">Which day each month this fires (1 – 28)</div>
     </div>
     <div class="fg">
       <label class="fl">Category</label>
@@ -397,12 +407,14 @@ body{
       <label class="fl">Memo (optional)</label>
       <input class="fi" id="add-memo" placeholder="Notes..." maxlength="120">
     </div>
-    <div class="toggle-row">
-      <div class="toggle-info">
-        <div class="toggle-label">Recurring</div>
-        <div class="toggle-sub">Repeats on a schedule</div>
+    <div id="recurring-toggle-row">
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="toggle-label">Recurring</div>
+          <div class="toggle-sub">Repeats on a schedule</div>
+        </div>
+        <button class="ios-toggle" id="recurring-toggle" onclick="toggleRecurring()"></button>
       </div>
-      <button class="ios-toggle" id="recurring-toggle" onclick="toggleRecurring()"></button>
     </div>
     <div id="recurring-opts" style="display:none">
       <div class="fg">
@@ -460,26 +472,37 @@ body{
   </div>
 </div>
 
-<!-- Drag Choice Sheet -->
-<div class="sheet" id="drag-choice-sheet">
+<!-- FAB Type Picker -->
+<div class="sheet" id="fab-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Reschedule</div>
+  <div class="sheet-title">Add Transaction</div>
   <div class="sheet-body">
-    <div style="font-size:14px;color:var(--ink-soft);margin-bottom:16px;line-height:1.6" id="drag-choice-desc"></div>
-    <div class="choice-list">
-      <div class="choice-item selected" id="dc-all" onclick="selectDragChoice('all')">
-        <span>Update all future occurrences</span>
-        <span id="dc-all-check">✓</span>
-      </div>
-      <div class="choice-item" id="dc-once" onclick="selectDragChoice('once')">
-        <span>This occurrence only</span>
-        <span id="dc-once-check"></span>
-      </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="fab-option" onclick="openAddSheet(null,null,'expense')">
+        <div class="fab-opt-icon" style="background:var(--red-pale)">💸</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">One-time Expense</div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">Single payment or purchase</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:20px">›</span>
+      </button>
+      <button class="fab-option" onclick="openAddSheet(null,null,'income')">
+        <div class="fab-opt-icon" style="background:var(--green-pale)">💰</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">One-time Income</div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">Deposit, refund, or gift</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:20px">›</span>
+      </button>
+      <button class="fab-option" onclick="openAddSheet(null,null,'recurring')">
+        <div class="fab-opt-icon" style="background:var(--blue-pale)">🔄</div>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Recurring</div>
+          <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">Monthly or weekly bill or income</div>
+        </div>
+        <span style="color:var(--ink-faint);font-size:20px">›</span>
+      </button>
     </div>
-  </div>
-  <div class="sheet-footer">
-    <button class="btn btn-secondary" onclick="cancelDrag()">Cancel</button>
-    <button class="btn btn-gold" onclick="confirmDrag()">Confirm</button>
   </div>
 </div>
 
@@ -556,6 +579,7 @@ var tx=ls('cb_tx',DEFAULT_TX);
 var balance=parseFloat(ls('cb_bal','-169.33'))||0;
 var adjustments=ls('cb_adj',[]);
 var onetimeTx=ls('cb_ot',[]);
+var exceptions=ls('cb_ex',[]);  // [{txId, date}] — suppresses a recurring occurrence on a specific date
 var nextId=Math.max.apply(null,[0].concat(tx.map(function(t){return t.id;})).concat(onetimeTx.map(function(t){return t.id||0;})))+1;
 var activeView='dashboard';
 var calYear=new Date().getFullYear();
@@ -565,14 +589,12 @@ var addKind='expense';
 var addRecurring=false;
 var addAutopay=false;
 var daySheetDate=null;
-var dragChoice='all';
-var pendingDrag=null;
 var _dragEl=null;
 var _dragOver=null;
 var _dragActive=false;
 
 // ─── Utilities ───────────────────────────────────────────────────────────────
-function save(){ss('cb_tx',tx);ss('cb_bal',balance);ss('cb_adj',adjustments);ss('cb_ot',onetimeTx);}
+function save(){ss('cb_tx',tx);ss('cb_bal',balance);ss('cb_adj',adjustments);ss('cb_ot',onetimeTx);ss('cb_ex',exceptions);}
 function fmt(v){return(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtS(v){return(v<0?'-$':'$')+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
 function pad(n){return n<10?'0'+n:''+n;}
@@ -611,11 +633,14 @@ function dayFires(t,d){
 
 function getDayTx(d){
   var income=[],expenses=[];
+  var ds=isoDate(d);
   tx.forEach(function(t){
     if(!dayFires(t,d))return;
+    // Skip if this specific occurrence was moved via drag (exception suppresses it)
+    var suppressed=exceptions.some(function(ex){return ex.txId===t.id&&ex.date===ds;});
+    if(suppressed)return;
     (t.type==='income'?income:expenses).push(Object.assign({},t,{_recurring:true}));
   });
-  var ds=isoDate(d);
   onetimeTx.forEach(function(t){
     if(t.date===ds)(t.type==='income'?income:expenses).push(Object.assign({},t,{_onetime:true}));
   });
@@ -928,42 +953,28 @@ function endDrag(x,y){
   if(_dragOver){
     _dragOver.classList.remove('drag-over');
     var newDay=parseInt(_dragOver.dataset.d);
+    // origDay = the cell day the chip came from (not t.day, which may differ for biweekly day2)
+    var origDay=parseInt(_dragEl.dataset.day);
+    var origM=parseInt(_dragEl.dataset.m);
+    var origY=parseInt(_dragEl.dataset.y);
     var txId=parseInt(_dragEl.dataset.txid);
     var t=tx.find(function(t){return t.id===txId;});
-    if(t&&newDay&&newDay!==t.day){
-      pendingDrag={txId:txId,newDay:newDay,oldDay:t.day,txName:t.name};
-      openDragChoiceSheet(t.name,t.day,newDay);
+    if(t&&newDay&&newDay!==origDay){
+      // Suppress only this month's occurrence — never mutates the recurring schedule
+      var origDate=isoDate(new Date(origY,origM,origDay));
+      exceptions.push({txId:txId,date:origDate});
+      // Place a one-time copy on the new date in the same month
+      onetimeTx.push({
+        id:nextId++,name:t.name,amount:t.amount,
+        date:isoDate(new Date(calYear,calMonth,newDay)),
+        type:t.type==='income'?'income':'expense',
+        cat:t.cat,memo:t.notes||'',color:null
+      });
+      save();showToast('Moved to the '+ordinal(newDay));renderCalendar();
     }
   }
   _dragOver=null;_dragEl=null;
 }
-function openDragChoiceSheet(name,oldDay,newDay){
-  dragChoice='all';
-  document.getElementById('drag-choice-desc').textContent='Move "'+name+'" from the '+ordinal(oldDay)+' to the '+ordinal(newDay)+'.';
-  document.getElementById('dc-all').classList.add('selected');
-  document.getElementById('dc-all-check').textContent='✓';
-  document.getElementById('dc-once').classList.remove('selected');
-  document.getElementById('dc-once-check').textContent='';
-  openSheet('drag-choice-sheet');
-}
-window.selectDragChoice=function(v){
-  dragChoice=v;
-  ['all','once'].forEach(function(x){
-    document.getElementById('dc-'+x).classList.toggle('selected',x===v);
-    document.getElementById('dc-'+x+'-check').textContent=x===v?'✓':'';
-  });
-};
-window.cancelDrag=function(){pendingDrag=null;closeAllSheets();};
-window.confirmDrag=function(){
-  if(!pendingDrag){closeAllSheets();return;}
-  var t=tx.find(function(t){return t.id===pendingDrag.txId;});
-  if(t){
-    if(t.day===pendingDrag.oldDay)t.day=pendingDrag.newDay;
-    else if(t.day2===pendingDrag.oldDay)t.day2=pendingDrag.newDay;
-    save();showToast('Transaction rescheduled');
-  }
-  pendingDrag=null;closeAllSheets();renderCalendar();
-};
 
 // ─── Day Sheet ───────────────────────────────────────────────────────────────
 function openDaySheet(y,m,d){
@@ -1004,9 +1015,9 @@ function openDaySheet(y,m,d){
   document.getElementById('day-sheet-body').innerHTML=html;
   openSheet('day-sheet');
 }
-window.addForDay=function(){if(!daySheetDate)return;closeAllSheets();openAddSheet(isoDate(daySheetDate.date));};
+window.addForDay=function(){if(!daySheetDate)return;closeAllSheets();openAddSheet(isoDate(daySheetDate.date),null,'expense');};
 window.deleteOnetime=function(id){onetimeTx=onetimeTx.filter(function(t){return t.id!==id;});save();closeAllSheets();showToast('Removed');refreshAll();};
-window.editRecurring=function(id){var t=tx.find(function(t){return t.id===id;});if(!t)return;closeAllSheets();openAddSheet(null,t);};
+window.editRecurring=function(id){var t=tx.find(function(t){return t.id===id;});if(!t)return;closeAllSheets();openAddSheet(null,t,null);};
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 function renderTransactions(){
@@ -1024,7 +1035,7 @@ function renderTransactions(){
   html+='<div class="list-section-hd">Recurring ('+rec.length+')</div><div class="list-card">';
   html+=rec.map(function(t){
     var bc={income:'b-income',bill:'b-bill',sub:'b-sub',auto:'b-auto'}[t.type]||'b-auto';
-    return '<div class="list-card-row"><div class="lc-icon cat-'+(t.cat||'other')+'">'+typeEmoji(t.type)+'</div><div class="lc-info"><div class="lc-name" style="'+(t.skip?'text-decoration:line-through;color:var(--ink-muted)':'')+'">'+escHtml(t.name)+'</div><div class="lc-meta">Day '+t.day+(t.day2?' & '+t.day2:'')+' · '+t.freq+(t.auto?' · auto':'')+'</div></div><div class="lc-right"><div class="lc-amt" style="color:'+(t.type==='income'?'var(--green)':'var(--red)')+'">'+(t.type==='income'?'+':'-')+fmt(t.amount)+'</div><span class="lc-badge '+bc+'">'+t.type+'</span></div><div style="display:flex;flex-direction:column;gap:4px;margin-left:6px"><button class="icon-btn" onclick="editRecurring('+t.id+')" title="Edit">✏️</button><button class="icon-btn" onclick="toggleSkip('+t.id+')" style="background:'+(t.skip?'var(--red-pale)':'var(--surface-3)')+'" title="'+(t.skip?'Resume':'Pause')+'">'+(t.skip?'▶':'⏸')+'</button></div></div>';
+    return '<div class="list-card-row" style="cursor:pointer" onclick="editRecurring('+t.id+')"><div class="lc-icon cat-'+(t.cat||'other')+'">'+typeEmoji(t.type)+'</div><div class="lc-info"><div class="lc-name" style="'+(t.skip?'text-decoration:line-through;color:var(--ink-muted)':'')+'">'+escHtml(t.name)+'</div><div class="lc-meta">Day '+t.day+(t.day2?' & '+t.day2:'')+' · '+t.freq+(t.auto?' · auto':'')+'</div></div><div class="lc-right"><div class="lc-amt" style="color:'+(t.type==='income'?'var(--green)':'var(--red)')+'">'+(t.type==='income'?'+':'-')+fmt(t.amount)+'</div><span class="lc-badge '+bc+'">'+t.type+'</span></div><button class="icon-btn" style="margin-left:6px;background:'+(t.skip?'var(--red-pale)':'var(--surface-3)')+'" onclick="event.stopPropagation();toggleSkip('+t.id+')" title="'+(t.skip?'Resume':'Pause')+'">'+(t.skip?'▶':'⏸')+'</button></div>';
   }).join('');
   html+='</div></div>';
   document.getElementById('view-transactions').innerHTML=html;
@@ -1092,7 +1103,9 @@ function renderAlerts(){
 }
 
 // ─── Add / Edit Sheet ────────────────────────────────────────────────────────
-window.openAddSheet=function(dateStr,editTxObj){
+window.openFabMenu=function(){openSheet('fab-sheet');};
+
+window.openAddSheet=function(dateStr,editTxObj,mode){
   addKind='expense';addRecurring=false;addAutopay=false;
   document.getElementById('add-edit-id').value='';
   document.getElementById('add-edit-recurring').value='0';
@@ -1102,16 +1115,18 @@ window.openAddSheet=function(dateStr,editTxObj){
   document.getElementById('add-cat').value='other';
   document.getElementById('add-freq').value='monthly';
   document.getElementById('add-date').value=dateStr||isoDate(today0());
-  document.getElementById('date-field-label').textContent='Date';
-  document.getElementById('date-field-wrap').style.display='';
+  document.getElementById('add-day-num').value='';
   document.getElementById('add-sheet-title').textContent='Add Transaction';
   setTxKind('expense');
   document.getElementById('recurring-toggle').classList.remove('on');
   document.getElementById('autopay-toggle').classList.remove('on');
   document.getElementById('recurring-opts').style.display='none';
+  document.getElementById('recurring-toggle-row').style.display='';
+  document.getElementById('date-field-wrap').style.display='';
+  document.getElementById('day-field-wrap').style.display='none';
 
   if(editTxObj){
-    document.getElementById('add-sheet-title').textContent='Edit Transaction';
+    document.getElementById('add-sheet-title').textContent='Edit Recurring';
     document.getElementById('add-edit-id').value=editTxObj.id;
     document.getElementById('add-edit-recurring').value='1';
     document.getElementById('add-name').value=editTxObj.name;
@@ -1125,10 +1140,19 @@ window.openAddSheet=function(dateStr,editTxObj){
     document.getElementById('recurring-toggle').classList.add('on');
     document.getElementById('autopay-toggle').classList.toggle('on',addAutopay);
     document.getElementById('recurring-opts').style.display='block';
-    // Show the fire day in the date input so user can change it
-    var fakeDate=new Date();fakeDate.setDate(Math.min(editTxObj.day,28));
-    document.getElementById('add-date').value=isoDate(fakeDate);
-    document.getElementById('date-field-label').textContent='Fire Day (day of month)';
+    document.getElementById('add-day-num').value=editTxObj.day;
+    document.getElementById('date-field-wrap').style.display='none';
+    document.getElementById('day-field-wrap').style.display='';
+    document.getElementById('recurring-toggle-row').style.display='none';
+  } else if(mode==='recurring'){
+    addRecurring=true;
+    document.getElementById('recurring-toggle').classList.add('on');
+    document.getElementById('recurring-opts').style.display='block';
+    document.getElementById('date-field-wrap').style.display='none';
+    document.getElementById('day-field-wrap').style.display='';
+    document.getElementById('recurring-toggle-row').style.display='none';
+  } else if(mode==='income'){
+    setTxKind('income');
   }
   openSheet('add-sheet');
 };
@@ -1144,7 +1168,8 @@ window.toggleRecurring=function(){
   addRecurring=!addRecurring;
   document.getElementById('recurring-toggle').classList.toggle('on',addRecurring);
   document.getElementById('recurring-opts').style.display=addRecurring?'block':'none';
-  document.getElementById('date-field-label').textContent=addRecurring?'Fire Day (day of month)':'Date';
+  document.getElementById('date-field-wrap').style.display=addRecurring?'none':'';
+  document.getElementById('day-field-wrap').style.display=addRecurring?'':'none';
 };
 
 window.toggleAutopay=function(){
@@ -1156,6 +1181,7 @@ window.saveTransaction=function(){
   var name=document.getElementById('add-name').value.trim();
   var amount=parseFloat(document.getElementById('add-amt').value);
   var dateStr=document.getElementById('add-date').value;
+  var dayNum=parseInt(document.getElementById('add-day-num').value);
   var cat=document.getElementById('add-cat').value;
   var memo=document.getElementById('add-memo').value.trim();
   var freq=document.getElementById('add-freq').value;
@@ -1169,8 +1195,7 @@ window.saveTransaction=function(){
     if(et){
       et.name=name;et.amount=amount;et.cat=cat;et.notes=memo;et.auto=addAutopay;et.freq=freq;
       if(addKind==='income')et.type='income';
-      // Allow changing fire day via date picker
-      if(dateStr){var dp=parseIso(dateStr);var nd=dp.getDate();if(nd>=1&&nd<=31)et.day=nd;}
+      if(!isNaN(dayNum)&&dayNum>=1&&dayNum<=28)et.day=dayNum;
     }
     save();showToast('Saved');closeAllSheets();renderTransactions();renderCalendar();return;
   }
@@ -1179,9 +1204,8 @@ window.saveTransaction=function(){
     if(!dateStr){showToast('Select a date.');return;}
     onetimeTx.push({id:nextId++,name:name,amount:amount,date:dateStr,type:addKind,cat:cat,memo:memo,color:null});
   } else {
-    if(!dateStr){showToast('Select a date.');return;}
-    var dp2=parseIso(dateStr);
-    tx.push({id:nextId++,name:name,amount:amount,day:dp2.getDate(),day2:null,type:addKind==='income'?'income':'bill',freq:freq,auto:addAutopay,skip:false,notes:memo,onetime:false,cat:cat});
+    if(isNaN(dayNum)||dayNum<1||dayNum>28){showToast('Enter a day of month (1–28).');return;}
+    tx.push({id:nextId++,name:name,amount:amount,day:dayNum,day2:null,type:addKind==='income'?'income':'bill',freq:freq,auto:addAutopay,skip:false,notes:memo,onetime:false,cat:cat});
   }
   save();showToast('Added');closeAllSheets();refreshAll();
 };
